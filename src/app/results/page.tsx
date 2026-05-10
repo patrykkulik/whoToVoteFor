@@ -32,7 +32,8 @@ function ResultsContent() {
   const answers = useSurvey((s) => s.answers);
   const weights = useSurvey((s) => s.weights);
   const region = useSurvey((s) => s.region);
-  const reset = useSurvey((s) => s.reset);
+  const resetSurvey = useSurvey((s) => s.resetSurvey);
+  const reviewAnswers = useSurvey((s) => s.reviewAnswers);
 
   const partyIds = useMemo(() => partiesForRegion(region), [region]);
 
@@ -113,17 +114,22 @@ function ResultsContent() {
       </section>
 
       <div className="flex flex-wrap gap-3 pt-4">
-        <Link href="/survey">
-          <Button variant="secondary">Review my answers</Button>
-        </Link>
         <Button
-          variant="ghost"
           onClick={() => {
-            reset();
+            resetSurvey();
             router.push("/survey");
           }}
         >
-          Start again
+          Take another survey
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            reviewAnswers();
+            router.push("/survey");
+          }}
+        >
+          Review my answers
         </Button>
       </div>
     </div>

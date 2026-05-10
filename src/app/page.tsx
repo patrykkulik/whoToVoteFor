@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { LandingResetEffect } from "@/components/LandingResetEffect";
 import { ScopeBanner } from "@/components/ScopeBanner";
 import { ELECTION_YEAR, STATEMENTS, TOPICS } from "@/data";
 import { ArrowRight, Lock, ListChecks, BarChart3 } from "lucide-react";
@@ -11,6 +12,7 @@ export default function LandingPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-5 py-14 sm:py-20">
+      <LandingResetEffect />
       <section className="text-center">
         <p className="text-sm uppercase tracking-widest text-[var(--color-muted)] mb-4">
           UK General Election {ELECTION_YEAR}

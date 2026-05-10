@@ -21,7 +21,10 @@ interface SurveyState {
   setImportance: (topic: TopicId, importance: Importance) => void;
   answer: (statementId: string, value: AnswerScore | null) => void;
   setIndex: (i: number) => void;
-  reset: () => void;
+  /** Wipes survey progress. Preserves `region` as a long-lived preference. */
+  resetSurvey: () => void;
+  /** Transitions out of the `done` phase so the user can edit prior answers. */
+  reviewAnswers: () => void;
   setHasHydrated: (b: boolean) => void;
 }
 
@@ -45,7 +48,9 @@ export const useSurvey = create<SurveyState>()(
       answer: (statementId, value) =>
         set((s) => ({ answers: { ...s.answers, [statementId]: value } })),
       setIndex: (currentIndex) => set({ currentIndex }),
-      reset: () => set({ ...initial }),
+      // Preserves region as a long-lived preference; wipes survey progress.
+      resetSurvey: () => set((s) => ({ ...initial, region: s.region })),
+      reviewAnswers: () => set({ phase: "questions", currentIndex: 0 }),
       setHasHydrated: (hasHydrated) => set({ hasHydrated }),
     }),
     {

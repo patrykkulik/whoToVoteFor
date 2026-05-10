@@ -13,6 +13,21 @@ import { Button } from "@/components/ui/Button";
 
 export function SurveyShell() {
   const phase = useSurvey((s) => s.phase);
+  const hasHydrated = useSurvey((s) => s.hasHydrated);
+  const didCheck = useRef(false);
+
+  // One-shot self-heal: if we mount with a previously completed survey (e.g.
+  // the user clicked "Start the survey" before LandingResetEffect could run),
+  // wipe progress so they begin fresh. Reads phase via getState() rather than
+  // subscribing so the natural setPhase("done") -> router.push("/results")
+  // transition at the end of the survey cannot retrigger this.
+  useEffect(() => {
+    if (!hasHydrated || didCheck.current) return;
+    didCheck.current = true;
+    if (useSurvey.getState().phase === "done") {
+      useSurvey.getState().resetSurvey();
+    }
+  }, [hasHydrated]);
 
   if (phase === "importance") return <ImportancePicker />;
   return <Questions />;
