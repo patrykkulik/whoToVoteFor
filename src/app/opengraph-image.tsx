@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 
+export const dynamic = "force-static";
 export const alt = "WhoToVoteFor — Match your views to UK party manifestos";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
