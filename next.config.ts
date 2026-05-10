@@ -1,21 +1,19 @@
 import type { NextConfig } from "next";
 
+// When deploying to GitHub Pages at https://<user>.github.io/<repo>/, we need
+// a basePath equal to the repo name. Set GITHUB_PAGES=true in the deploy
+// workflow; local `next dev` and `next start` keep working without it.
+const isPages = process.env.GITHUB_PAGES === "true";
+const repo = "whoToVoteFor";
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  async headers() {
-    return [
-      {
-        source: "/:path*",
-        headers: [
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "DENY" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-        ],
-      },
-    ];
-  },
+  output: "export",
+  images: { unoptimized: true },
+  trailingSlash: true,
+  basePath: isPages ? `/${repo}` : undefined,
+  assetPrefix: isPages ? `/${repo}/` : undefined,
 };
 
 export default nextConfig;
