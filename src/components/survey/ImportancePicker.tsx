@@ -1,14 +1,15 @@
 "use client";
 
-import { TOPICS, type TopicId } from "@/data";
+import { STATEMENTS, TOPICS, type TopicId } from "@/data";
 import { useSurvey } from "@/lib/store";
-import type { Importance } from "@/lib/scoring";
+import { activeStatementsFor, type Importance } from "@/lib/scoring";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ScopeBanner } from "@/components/ScopeBanner";
 import { RegionPicker } from "@/components/RegionPicker";
 
 const OPTIONS: { value: Importance; label: string }[] = [
+  { value: "skip", label: "Skip" },
   { value: "low", label: "Low" },
   { value: "medium", label: "Medium" },
   { value: "high", label: "High" },
@@ -17,15 +18,32 @@ const OPTIONS: { value: Importance; label: string }[] = [
 export function ImportancePicker() {
   const weights = useSurvey((s) => s.weights);
   const setImportance = useSurvey((s) => s.setImportance);
-  const setPhase = useSurvey((s) => s.setPhase);
+  const beginSurvey = useSurvey((s) => s.beginSurvey);
+
+  const allTopics = Object.values(TOPICS);
+  const skippedCount = allTopics.filter((t) => weights[t.id as TopicId] === "skip").length;
+  const allSkipped = skippedCount === allTopics.length;
+  const noneSkipped = skippedCount === 0;
+
+  const focusedDisabled = noneSkipped || allSkipped;
+  const focusedHint = noneSkipped
+    ? "Mark a topic as Skip to focus the survey."
+    : allSkipped
+      ? "Un-skip at least one topic to continue."
+      : null;
+
+  const onBegin = (mode: "full" | "focused") => {
+    const ids = activeStatementsFor(STATEMENTS, weights, mode).map((s) => s.id);
+    beginSurvey(mode, ids);
+  };
 
   return (
     <div className="space-y-8">
       <header>
         <h1 className="font-display text-3xl mb-2">What matters to you?</h1>
         <p className="text-[var(--color-muted)]">
-          Mark each topic as low, medium or high importance. We&apos;ll weight
-          your matches accordingly. (Default is medium.)
+          Mark each topic as low, medium or high importance — or Skip to leave
+          it out of a focused survey. (Default is medium.)
         </p>
       </header>
 
@@ -36,13 +54,20 @@ export function ImportancePicker() {
       </Card>
 
       <ul className="space-y-3">
-        {Object.values(TOPICS).map((topic) => {
+        {allTopics.map((topic) => {
           const current = weights[topic.id as TopicId] ?? "medium";
+          const isSkipped = current === "skip";
           return (
             <li key={topic.id}>
               <Card className="p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
                 <div className="flex-1">
-                  <p className="font-medium">{topic.label}</p>
+                  <p
+                    className={`font-medium ${
+                      isSkipped ? "line-through text-[var(--color-muted)]" : ""
+                    }`}
+                  >
+                    {topic.label}
+                  </p>
                   <p className="text-sm text-[var(--color-muted)]">{topic.blurb}</p>
                 </div>
                 <div
@@ -76,11 +101,32 @@ export function ImportancePicker() {
         })}
       </ul>
 
-      <div className="flex justify-end">
-        <Button size="lg" onClick={() => setPhase("questions")}>
-          Begin
-        </Button>
+      <div className="space-y-3">
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+          <div className="flex flex-col items-stretch sm:items-end gap-1">
+            <Button
+              size="lg"
+              variant="secondary"
+              disabled={focusedDisabled}
+              onClick={() => onBegin("focused")}
+            >
+              Take focused survey
+            </Button>
+            <p className="text-xs text-[var(--color-muted)] sm:text-right">
+              {focusedHint ?? `Skips ${skippedCount} topic${skippedCount === 1 ? "" : "s"}.`}
+            </p>
+          </div>
+          <div className="flex flex-col items-stretch sm:items-end gap-1">
+            <Button size="lg" onClick={() => onBegin("full")}>
+              Take full survey
+            </Button>
+            <p className="text-xs text-[var(--color-muted)] sm:text-right">
+              Answer every statement.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
+

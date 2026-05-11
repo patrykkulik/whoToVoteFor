@@ -40,6 +40,13 @@ export default function AboutPage() {
           &ldquo;answered N of M statements&rdquo; figure on the results page
           tells you how much evidence that represents.
         </p>
+        <p>
+          You can take the survey in two modes. <em>Full</em> asks every
+          statement; topics you marked as <em>Skip</em> are still scored, but
+          treated as low importance so your preference is preserved. <em>Focused</em>
+          drops Skip-marked topics from the survey and from scoring entirely,
+          so you only see and score what you care about.
+        </p>
       </section>
 
       <section className="space-y-3">

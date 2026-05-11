@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { STATEMENTS, TOPICS } from "@/data";
+import { STATEMENTS, TOPICS, type Statement } from "@/data";
 import { useSurvey } from "@/lib/store";
 import type { AnswerScore } from "@/lib/scoring";
 import { ImportancePicker } from "./ImportancePicker";
@@ -37,18 +37,45 @@ function Questions() {
   const router = useRouter();
   const answers = useSurvey((s) => s.answers);
   const currentIndex = useSurvey((s) => s.currentIndex);
+  const activeStatementIds = useSurvey((s) => s.activeStatementIds);
   const setIndex = useSurvey((s) => s.setIndex);
   const answer = useSurvey((s) => s.answer);
   const setPhase = useSurvey((s) => s.setPhase);
+  const resetSurvey = useSurvey((s) => s.resetSurvey);
 
-  const total = STATEMENTS.length;
-  const safeIndex = Math.min(Math.max(currentIndex, 0), total - 1);
-  const statement = STATEMENTS[safeIndex];
-  const current = answers[statement.id] ?? null;
+  // Resolve the frozen active statement set captured at "Begin" time. A null
+  // value (fresh state or v2-migrated session) falls back to the full list.
+  const { active, stale } = useMemo(() => {
+    if (!activeStatementIds) return { active: STATEMENTS as readonly Statement[], stale: false };
+    const byId = new Map(STATEMENTS.map((s) => [s.id, s] as const));
+    const resolved = activeStatementIds
+      .map((id) => byId.get(id))
+      .filter((s): s is Statement => s !== undefined);
+    const isStale = resolved.length !== activeStatementIds.length || resolved.length === 0;
+    return { active: resolved, stale: isStale };
+  }, [activeStatementIds]);
 
+  // Stale-data recovery: persisted IDs reference statements that no longer
+  // exist (e.g. a manifesto refresh). Reset and route back to the importance
+  // picker rather than silently shrinking the run.
+  useEffect(() => {
+    if (!stale) return;
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.warn("[survey] persisted activeStatementIds are stale; resetting.");
+    }
+    resetSurvey();
+  }, [stale, resetSurvey]);
+
+  const total = active.length;
   // Prevents double-recording when a key is pressed during the post-answer
   // transition window.
   const transitioning = useRef(false);
+
+  // Hooks below must run unconditionally; guard rendering after.
+  const safeIndex = total === 0 ? 0 : Math.min(Math.max(currentIndex, 0), total - 1);
+  const statement = total === 0 ? null : active[safeIndex];
+  const current = statement ? answers[statement.id] ?? null : null;
 
   const advance = () => {
     if (safeIndex < total - 1) {
@@ -60,7 +87,7 @@ function Questions() {
   };
 
   const onAnswer = (value: AnswerScore) => {
-    if (transitioning.current) return;
+    if (!statement || transitioning.current) return;
     transitioning.current = true;
     answer(statement.id, value);
     window.setTimeout(() => {
@@ -70,7 +97,7 @@ function Questions() {
   };
 
   const onSkip = () => {
-    if (transitioning.current) return;
+    if (!statement || transitioning.current) return;
     answer(statement.id, null);
     advance();
   };
@@ -99,7 +126,16 @@ function Questions() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [safeIndex]);
+  }, [safeIndex, statement?.id]);
+
+  if (stale || !statement) {
+    return (
+      <div className="space-y-4 text-center py-10">
+        <p className="text-[var(--color-muted)]">No questions to show.</p>
+        <Button onClick={() => setPhase("importance")}>Pick again</Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-7">
@@ -133,3 +169,4 @@ function Questions() {
     </div>
   );
 }
+

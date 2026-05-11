@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { scoreParties, rank, type Answers, type Weights } from "./scoring";
+import {
+  scoreParties,
+  rank,
+  scoringWeight,
+  activeStatementsFor,
+  type Answers,
+  type Weights,
+} from "./scoring";
 import type { PartyId, Statement } from "@/data";
 
 const mkStatement = (
@@ -104,5 +111,95 @@ describe("scoreParties", () => {
     ];
     const r = rank(matches);
     expect(r.map((m) => m.partyId)).toEqual(["libdem", "conservative", "labour"]);
+  });
+});
+
+describe("scoringWeight", () => {
+  it("defaults undefined to medium in either mode", () => {
+    expect(scoringWeight(undefined, "full")).toBe("medium");
+    expect(scoringWeight(undefined, "focused")).toBe("medium");
+  });
+  it("passes low/medium/high through unchanged", () => {
+    for (const m of ["full", "focused"] as const) {
+      expect(scoringWeight("low", m)).toBe("low");
+      expect(scoringWeight("medium", m)).toBe("medium");
+      expect(scoringWeight("high", m)).toBe("high");
+    }
+  });
+  it("maps skip → low in full mode and null in focused mode", () => {
+    expect(scoringWeight("skip", "full")).toBe("low");
+    expect(scoringWeight("skip", "focused")).toBeNull();
+  });
+});
+
+describe("activeStatementsFor", () => {
+  const statements = [
+    mkStatement("a", "nhs", { labour: 1 }),
+    mkStatement("b", "economy", { labour: 1 }),
+    mkStatement("c", "housing", { labour: 1 }),
+  ];
+
+  it("returns all statements in full mode regardless of weights", () => {
+    expect(activeStatementsFor(statements, { nhs: "skip" }, "full")).toHaveLength(3);
+  });
+  it("drops skipped-topic statements in focused mode", () => {
+    const out = activeStatementsFor(statements, { nhs: "skip", economy: "high" }, "focused");
+    expect(out.map((s) => s.id)).toEqual(["b", "c"]);
+  });
+  it("treats undefined weights as medium (kept) in focused mode", () => {
+    expect(activeStatementsFor(statements, {}, "focused")).toHaveLength(3);
+  });
+  it("returns empty array when all topics are skipped in focused mode", () => {
+    const out = activeStatementsFor(
+      statements,
+      { nhs: "skip", economy: "skip", housing: "skip" },
+      "focused",
+    );
+    expect(out).toEqual([]);
+  });
+});
+
+describe("scoreParties + mode", () => {
+  it("defaults mode to full when omitted (back-compat)", () => {
+    const statements = [mkStatement("a", "nhs", { labour: 2 })];
+    const [labour] = scoreParties(statements, ["labour"], { a: 2 }, { nhs: "skip" });
+    // skip → low at scoring time, perfect agreement still 100%
+    expect(labour.match).toBe(100);
+  });
+
+  it("excludes skip-topic statements in focused mode even with stale answers", () => {
+    const statements = [
+      mkStatement("a", "nhs", { labour: 2 }),
+      mkStatement("b", "economy", { labour: 2 }),
+    ];
+    // Stale answer on "a" (its topic is skip) must not affect scoring.
+    const answers: Answers = { a: -2, b: 2 };
+    const [labour] = scoreParties(
+      statements,
+      ["labour"],
+      answers,
+      { nhs: "skip", economy: "high" },
+      "focused",
+    );
+    expect(labour.match).toBe(100);
+    expect(labour.answeredCount).toBe(1);
+    expect(labour.totalStated).toBe(1);
+  });
+
+  it("treats skip as low weight in full mode (relative weighting preserved)", () => {
+    const statements = [
+      mkStatement("hi", "nhs", { labour: 2 }),
+      mkStatement("sk", "economy", { labour: -2 }),
+    ];
+    // Both answered +2. nhs=high (3*4=12 weight), economy=skip→low (1*4=4 weight).
+    // num = 3*4 + 1*0 = 12; den = 12 + 4 = 16 → 75%.
+    const [labour] = scoreParties(
+      statements,
+      ["labour"],
+      { hi: 2, sk: 2 },
+      { nhs: "high", economy: "skip" },
+      "full",
+    );
+    expect(labour.match).toBe(75);
   });
 });

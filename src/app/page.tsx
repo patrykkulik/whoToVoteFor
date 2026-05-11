@@ -54,7 +54,7 @@ export default function LandingPage() {
         <h2 className="font-display text-2xl mb-5">How it works</h2>
         <ol className="space-y-4">
           {[
-            ["Pick what matters", "Mark each policy topic as low, medium or high importance."],
+            ["Pick what matters", "Mark each policy topic as low, medium or high importance — or skip topics you'd rather not answer."],
             ["Answer the statements", "For each one, say how much you agree or disagree."],
             ["See your matches", "We rank each party by how closely their manifesto aligns with you."],
           ].map(([title, body], i) => (

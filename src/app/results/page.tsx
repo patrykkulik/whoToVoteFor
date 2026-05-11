@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useSurvey } from "@/lib/store";
-import { PARTIES, STATEMENTS } from "@/data";
+import { PARTIES, STATEMENTS, TOPICS, type TopicId } from "@/data";
 import { rank, scoreParties } from "@/lib/scoring";
 import { partiesForRegion, REGION_LABEL } from "@/lib/region";
 import { Button } from "@/components/ui/Button";
@@ -32,19 +32,26 @@ function ResultsContent() {
   const answers = useSurvey((s) => s.answers);
   const weights = useSurvey((s) => s.weights);
   const region = useSurvey((s) => s.region);
+  const mode = useSurvey((s) => s.mode);
   const resetSurvey = useSurvey((s) => s.resetSurvey);
   const reviewAnswers = useSurvey((s) => s.reviewAnswers);
 
   const partyIds = useMemo(() => partiesForRegion(region), [region]);
+  const effectiveMode = mode ?? "full";
 
   const matches = useMemo(
-    () => rank(scoreParties(STATEMENTS, partyIds, answers, weights)),
-    [answers, weights, partyIds],
+    () => rank(scoreParties(STATEMENTS, partyIds, answers, weights, effectiveMode)),
+    [answers, weights, partyIds, effectiveMode],
   );
 
   const answeredCount = Object.values(answers).filter(
     (a) => a !== null && a !== undefined,
   ).length;
+
+  const skippedTopicCount =
+    effectiveMode === "focused"
+      ? (Object.keys(TOPICS) as TopicId[]).filter((id) => weights[id] === "skip").length
+      : 0;
 
   if (answeredCount === 0) {
     return (
@@ -74,6 +81,12 @@ function ResultsContent() {
           percentage shows how closely each party&apos;s manifesto matches your
           views, weighted by the topics you marked as important.
         </p>
+        {effectiveMode === "focused" && skippedTopicCount > 0 && (
+          <p className="inline-flex items-center gap-2 text-xs px-2.5 py-1 rounded-full border border-[var(--color-border)] bg-[var(--color-accent-soft)] text-[var(--color-fg)]">
+            Focused survey · {skippedTopicCount} topic
+            {skippedTopicCount === 1 ? "" : "s"} skipped
+          </p>
+        )}
       </header>
 
       <Card className="p-6">
